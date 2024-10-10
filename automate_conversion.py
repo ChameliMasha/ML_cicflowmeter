@@ -3,6 +3,17 @@ import os
 import subprocess
 import pandas as pd
 from flask import Flask, request, jsonify
+from feed_to_ml import model_feed
+import ipaddress
+import pandas as pd
+from tensorflow.keras.models import load_model
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+import pickle
+import tensorflow as tf
+import numpy as np
+
 
 app = Flask(__name__)
 
@@ -24,13 +35,13 @@ def convert_pcap_to_csv(pcap_file, output_dir):
         result = subprocess.run(command, capture_output=True, text=True)
         
         if result.returncode == 0:
-            filter_columns(csv_output, output_dir)
-            return "Successfully converted"
+            # Return anomalies from filtering process
+            return filter_columns(csv_output, output_dir)
         else:
-            return f"Error occurred: {result.stderr}"
+            return {"message": f"Error occurred: {result.stderr}", "anomalies": -1}
             
     except Exception as e:
-        return f"An error occurred: {str(e)}"
+        return {"message": f"An error occurred: {str(e)}", "anomalies": -1}
 
 
 def filter_columns(input_file, output_dir):
@@ -38,6 +49,12 @@ def filter_columns(input_file, output_dir):
     data = pd.read_csv(input_file)
     filtered_data = data[columns_to_keep]
     filtered_data.to_csv(output_file, index=False)
+    
+    no_of_anomalies = model_feed(output_file)
+    print(f"no of anomalies: ", no_of_anomalies)
+     
+     # Return the result
+    return {"message": "Successfully converted", "anomalies": no_of_anomalies}
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -54,10 +71,14 @@ def upload_file():
 
         output_dir = './outputs'
         os.makedirs(output_dir, exist_ok=True)
-        
-        status_message = convert_pcap_to_csv(file_path, output_dir)
-        
-        return jsonify({'status': 'success', 'message': status_message})
+
+        # Get status message and anomalies count
+        result = convert_pcap_to_csv(file_path, output_dir)
+
+        # Ensure any np.int64 is converted to a regular Python int before returning
+        anomalies_count = int(result['anomalies']) if isinstance(result['anomalies'], (np.integer, np.int64)) else result['anomalies']
+
+        return jsonify({'status': 'success', 'message': result['message'], 'anomalies': anomalies_count})
 
 if __name__ == '__main__':
     os.makedirs('./uploads', exist_ok=True)
