@@ -12,10 +12,10 @@ import numpy as np
 # Step 1: Load the trained Keras model
 # Load the model model
 def model_feed(csv_file_path):
-    model = load_model('autoencoder.h5')
+    model = load_model('./models/autoencoder_old.h5')
 
     # Load the threshold value from the pickle file
-    with open('threshold-autoencoder.pkl', 'rb') as f:
+    with open('./models/threshold-autoencoder_old.pkl', 'rb') as f:
         threshold = pickle.load(f)
 
     # Step 2: Load the CSV file with the required columns
